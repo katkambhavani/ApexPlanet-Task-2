@@ -1,8 +1,13 @@
 
 document.addEventListener("DOMContentLoaded", () => {
+    console.log("AccessPoint script loaded");
+    // Footer year
     const year = document.getElementById("currentYear");
-    if (year) year.textContent = new Date().getFullYear();
+    if (year) {
+        year.textContent = new Date().getFullYear();
+    }
 
+    // Demo accounts stored in this browser
     const STORAGE_KEY = "accessPointDemoAccounts";
 
     function getAccounts() {
@@ -16,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Display feedback
     function showMessage(element, message, type = "error") {
         if (!element) return;
         element.textContent = message;
@@ -28,15 +34,17 @@ document.addEventListener("DOMContentLoaded", () => {
         element.className = "form-message";
     }
 
-    function validEmail(email) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-
+    // Validate email format
+  function validEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
     function markInvalid(input, invalid) {
-        if (input) input.classList.toggle("is-invalid", invalid);
+        if (input) {
+            input.classList.toggle("is-invalid", invalid);
+        }
     }
 
-    // Show/hide password controls
+    // Show/hide password
     document.querySelectorAll("[data-toggle-password]").forEach(button => {
         button.addEventListener("click", () => {
             const input = document.getElementById(
@@ -53,6 +61,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 "aria-label",
                 show ? "Hide password" : "Show password"
             );
+
+            button.setAttribute(
+                "title",
+                show ? "Hide password" : "Show password"
+            );
         });
     });
 
@@ -67,6 +80,44 @@ document.addEventListener("DOMContentLoaded", () => {
         const termsInput = document.getElementById("termsCheck");
         const termsFeedback = document.getElementById("termsFeedback");
         const feedback = document.getElementById("registerFeedback");
+
+        // PHP/AJAX email format check
+        if (emailInput) {
+            emailInput.addEventListener("blur", async () => {
+                const email = emailInput.value.trim();
+
+                if (!email) return;
+
+                if (!validEmail(email)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(
+                        `check-email.php?email=${encodeURIComponent(email)}`
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        showMessage(feedback, result.message);
+                        markInvalid(emailInput, true);
+                    } else {
+                        console.log("PHP email check:", result.message);
+                    }
+                } catch (error) {
+                    console.error("PHP email check failed:", error);
+                    showMessage(
+                        feedback,
+                        "Could not check the email with PHP. Please try again."
+                    );
+                }
+            });
+        }
 
         registerForm.addEventListener("submit", event => {
             event.preventDefault();
@@ -90,47 +141,54 @@ document.addEventListener("DOMContentLoaded", () => {
             markInvalid(passwordInput, !passwordOK);
             markInvalid(confirmInput, !confirmOK);
 
-            termsFeedback.textContent = termsOK
-                ? ""
-                : "Please accept the terms and conditions.";
-if (
-    !nameOK ||
-    !emailOK ||
-    !passwordOK ||
-    !confirmOK ||
-    !termsOK
-) {
-    const allFieldsEmpty =
-        !nameInput.value.trim() &&
-        !emailInput.value.trim() &&
-        !passwordInput.value &&
-        !confirmInput.value;
+            if (termsFeedback) {
+                termsFeedback.textContent = termsOK
+                    ? ""
+                    : "Please accept the terms and conditions.";
+            }
 
-    if (allFieldsEmpty) {
-        showMessage(
-            feedback,
-            "Please fill in all required fields."
-        );
-    } else if (!nameOK) {
-        showMessage(feedback, "Please enter a valid name.");
-    } else if (!emailOK) {
-        showMessage(feedback, "Please enter a valid email address.");
-    } else if (!passwordOK) {
-        showMessage(
-            feedback,
-            "Password must be at least 8 characters long."
-        );
-    } else if (!confirmOK) {
-        showMessage(feedback, "Passwords do not match.");
-    } else {
-        showMessage(
-            feedback,
-            "Please accept the terms and conditions."
-        );
-    }
+            if (
+                !nameOK ||
+                !emailOK ||
+                !passwordOK ||
+                !confirmOK ||
+                !termsOK
+            ) {
+                const allFieldsEmpty =
+                    !name &&
+                    !email &&
+                    !password &&
+                    !confirmPassword;
 
-    return;
-}
+                if (allFieldsEmpty) {
+                    showMessage(
+                        feedback,
+                        "Please fill in all required fields."
+                    );
+                } else if (!nameOK) {
+                    showMessage(feedback, "Please enter a valid name.");
+                } else if (!emailOK) {
+                    showMessage(
+                        feedback,
+                        "Please enter a valid email address."
+                    );
+                } else if (!passwordOK) {
+                    showMessage(
+                        feedback,
+                        "Password must be at least 8 characters long."
+                    );
+                } else if (!confirmOK) {
+                    showMessage(feedback, "Passwords do not match.");
+                } else {
+                    showMessage(
+                        feedback,
+                        "Please accept the terms and conditions."
+                    );
+                }
+
+                return;
+            }
+
             const accounts = getAccounts();
 
             const alreadyRegistered = accounts.some(
@@ -146,7 +204,7 @@ if (
                 return;
             }
 
-            // Demo-only storage. Not suitable for real authentication.
+            // Demo only: this is not secure authentication.
             accounts.push({
                 name: name,
                 email: email,
@@ -181,20 +239,33 @@ if (
                 confirmInput
             ].forEach(input => markInvalid(input, false));
 
-            termsFeedback.textContent = "";
+            if (termsFeedback) {
+                termsFeedback.textContent = "";
+            }
         });
 
-        [nameInput, emailInput, passwordInput, confirmInput].forEach(input => {
+        [
+            nameInput,
+            emailInput,
+            passwordInput,
+            confirmInput
+        ].forEach(input => {
+            if (!input) return;
+
             input.addEventListener("input", () => {
                 markInvalid(input, false);
                 clearMessage(feedback);
             });
         });
 
-        termsInput.addEventListener("change", () => {
-            termsFeedback.textContent = "";
-            clearMessage(feedback);
-        });
+        if (termsInput) {
+            termsInput.addEventListener("change", () => {
+                if (termsFeedback) {
+                    termsFeedback.textContent = "";
+                }
+                clearMessage(feedback);
+            });
+        }
     }
 
     // LOGIN
@@ -211,23 +282,26 @@ if (
 
             const email = emailInput.value.trim().toLowerCase();
             const password = passwordInput.value;
+            const emailOK = validEmail(email);
 
-      const emailOK = validEmail(email);
+            markInvalid(emailInput, !emailOK);
 
-markInvalid(emailInput, !emailOK);
+            if (!emailOK) {
+                showMessage(
+                    feedback,
+                    "Please enter a valid email address."
+                );
+                return;
+            }
 
-if (!emailOK) {
-    showMessage(feedback, "Please enter a valid email address.");
-    return;
-}
+            if (!password) {
+                markInvalid(passwordInput, true);
+                showMessage(feedback, "Please enter your password.");
+                return;
+            }
 
-if (!password) {
-    markInvalid(passwordInput, true);
-    showMessage(feedback, "Please enter your password.");
-    return;
-}
+            markInvalid(passwordInput, false);
 
-markInvalid(passwordInput, false);
             const accounts = getAccounts();
             const account = accounts.find(
                 item => item.email === email
@@ -259,6 +333,8 @@ markInvalid(passwordInput, false);
         });
 
         [emailInput, passwordInput].forEach(input => {
+            if (!input) return;
+
             input.addEventListener("input", () => {
                 markInvalid(input, false);
                 clearMessage(feedback);
@@ -266,41 +342,43 @@ markInvalid(passwordInput, false);
         });
     }
 
-    // Optional email availability form, if present
+    // Optional email availability form
     const availabilityForm = document.getElementById("emailCheckForm");
 
     if (availabilityForm) {
         const emailInput = document.getElementById("checkEmail");
         const feedback = document.getElementById("emailCheckFeedback");
 
-        availabilityForm.addEventListener("submit", event => {
-            event.preventDefault();
+        if (emailInput) {
+            availabilityForm.addEventListener("submit", event => {
+                event.preventDefault();
 
-            const email = emailInput.value.trim().toLowerCase();
+                const email = emailInput.value.trim().toLowerCase();
 
-            if (!validEmail(email)) {
-                showMessage(feedback, "Enter a valid email address.");
-                return;
-            }
+                if (!validEmail(email)) {
+                    showMessage(feedback, "Enter a valid email address.");
+                    return;
+                }
 
-            const exists = getAccounts().some(
-                account => account.email === email
-            );
-
-            if (exists) {
-                showMessage(
-                    feedback,
-                    "This email is already registered. Please sign in.",
-                    "error"
+                const exists = getAccounts().some(
+                    account => account.email === email
                 );
-            } else {
-                showMessage(
-                    feedback,
-                    "This email is not registered in this browser. You can create an account.",
-                    "success"
-                );
-            }
-        });
+
+                if (exists) {
+                    showMessage(
+                        feedback,
+                        "This email is already registered. Please sign in.",
+                        "error"
+                    );
+                } else {
+                    showMessage(
+                        feedback,
+                        "This email is not registered in this browser. You can create an account.",
+                        "success"
+                    );
+                }
+            });
+        }
     }
 
     // Password reset notice
@@ -309,6 +387,7 @@ markInvalid(passwordInput, false);
     if (forgotLink) {
         forgotLink.addEventListener("click", event => {
             event.preventDefault();
+
             showMessage(
                 document.getElementById("loginFeedback"),
                 "Password reset is not available."
